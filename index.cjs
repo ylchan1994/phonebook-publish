@@ -26,6 +26,7 @@ let persons = JSON.parse(`[
 ]`)
 
 app.use(express.json())
+app.use(express.static('dist'))
 
 morgan.token('body', (req) => {
   const body = req.body
@@ -51,9 +52,7 @@ app.get('/info', (request, response) => {
 app.get('/api/persons/:id', (request, response) => {
   const id = request.params.id
   const found = persons.find(person => person.id == id)
-  console.log(found)
   if (!found) {
-    console.log('return 404 here')
     response.status(404).end()
     return
   }
