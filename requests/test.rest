@@ -4,16 +4,26 @@ GET http://localhost:3001/api/persons
 GET http://localhost:3001/info
 
 ###
-DELETE http://localhost:3001/api/persons/2
+DELETE http://localhost:3001/api/persons/6927ef07e28739d94fe0b4fa
 
 ###
-GET http://localhost:3001/api/persons/2
+GET http://localhost:3001/api/persons/6927e640b356151f675cadbf
 
 ###
 POST http://localhost:3001/api/persons
 content-type: application/json
 
 {
-  "name": "Another test",
-  "number": "234234234"
+  "name": "meovv sooin",
+  "number": "12-3456"
 }
+
+###
+PUT http://localhost:3001/api/persons/6927e640b356151f675cadbf
+content-type: application/json
+
+{
+  "name": "df",
+  "number": "2342346"
+}
+

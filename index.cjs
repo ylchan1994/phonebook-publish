@@ -1,32 +1,18 @@
+require('dotenv').config()
 const express = require('express')
 const app = express()
 const morgan = require('morgan')
-
-let persons = JSON.parse(`[
-    { 
-      "id": "1",
-      "name": "Arto Hellas", 
-      "number": "040-123456"
-    },
-    { 
-      "id": "2",
-      "name": "Ada Lovelace", 
-      "number": "39-44-5323523"
-    },
-    { 
-      "id": "3",
-      "name": "Dan Abramov", 
-      "number": "12-43-234345"
-    },
-    { 
-      "id": "4",
-      "name": "Mary Poppendieck", 
-      "number": "39-23-6423122"
-    }
-]`)
+const Person = require('./models/person.cjs')
+const { default: person } = require('./models/person.cjs')
 
 app.use(express.json())
-app.use(express.static('dist'))
+
+let persons = []
+
+Person.find({}).then(result => {
+  persons = result
+})
+  .catch(error => console.log(error))
 
 morgan.token('body', (req) => {
   const body = req.body
@@ -35,8 +21,12 @@ morgan.token('body', (req) => {
 
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :body'))
 
-app.get('/api/persons', (request, response) => {
-  response.json(persons)
+app.get('/api/persons', (request, response, next) => {
+  Person.find({}).then(result => {
+    persons = result
+    response.json(result)
+  })
+    .catch(error => next(error))
 })
 
 app.get('/info', (request, response) => {
@@ -49,25 +39,30 @@ app.get('/info', (request, response) => {
   response.send(responseBody)
 })
 
-app.get('/api/persons/:id', (request, response) => {
+app.get('/api/persons/:id', (request, response, next) => {
   const id = request.params.id
-  const found = persons.find(person => person.id == id)
-  if (!found) {
-    response.status(404).end()
-    return
-  }
-
-  response.send(found)
+  Person.findById(id)
+    .then(found => {
+      if (!found) {
+        response.status(404).end()
+        return
+      }
+      response.json(found)
+    })
+    .catch(error => next(error))
 })
 
-app.delete('/api/persons/:id', (request, response) => {
+app.delete('/api/persons/:id', (request, response, next) => {
   const id = request.params.id
-  persons = persons.filter(person => person.id != id)
-
-  response.status(204).end()
+  Person.findByIdAndDelete(id)
+    .then(result => {
+      persons = persons.filter(person => person.id != id)
+      response.status(204).end()
+    })
+    .catch(error => next(error))
 })
 
-app.post('/api/persons', (request, response) => {
+app.post('/api/persons', (request, response, next) => {
   const body = request.body
   const requestName = body.name
   const found = persons.find(person => person.name.toLowerCase() === requestName.toLowerCase())
@@ -84,12 +79,55 @@ app.post('/api/persons', (request, response) => {
     return
   }
 
-  persons.push({...body, id: Math.round(Math.random()*2000000000)})
+  const person = new Person({
+    name: body.name,
+    number: body.number
+  })
 
-  response.status(200).json(persons)
+  person.save().then(successSave => {
+    persons.push(person)
+    response.status(200).json(persons)
+  })
+    .catch(error => next(error))
+
 })
 
-const PORT = process.env.PORT || 3001
+app.put('/api/persons/:id', (request, response, next) => {
+  const { name, number } = request.body
+  const id = request.params.id
+
+  Person.findById(id)
+    .then(found => {
+      if (!found) return response.status(404).end()
+
+      found.name = name
+      found.number = number
+
+      found.save().then(updatedPerson => {
+        persons = persons.map(person => person.id == id ? found : person)
+        response.json(updatedPerson).end()
+      })
+      .catch(error => next(error))
+
+    })
+    .catch(error => next(error))
+})
+
+const PORT = process.env.PORT
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
 })
+
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message)
+
+  if (error.name === 'CastError') {
+    return response.status(400).send({ error: 'malformatted id' })
+  } else if (error.name === 'ValidationError') {
+    return response.status(400).send({ error: error.message })
+  }
+
+  next(error)
+}
+
+app.use(errorHandler)
