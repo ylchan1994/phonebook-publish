@@ -3,9 +3,9 @@ const express = require('express')
 const app = express()
 const morgan = require('morgan')
 const Person = require('./models/person.cjs')
-const { default: person } = require('./models/person.cjs')
 
 app.use(express.json())
+app.use(express.static('dist'))
 
 let persons = []
 
